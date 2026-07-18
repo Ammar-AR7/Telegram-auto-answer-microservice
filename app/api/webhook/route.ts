@@ -76,6 +76,19 @@ export async function POST(request: Request) {
         throw new Error('NOTION_DATABASE_ID is not configured.');
       }
 
+      // Validate the time range format using strict regex
+      // Supports MM:SS or HH:MM:SS format
+      // Single range: 01:10-01:15
+      // Multiple ranges: 01:10-01:15, 03:00-03:10
+      const timeFormat = '(?:\\d{1,2}:)?\\d{1,2}:\\d{2}';
+      const rangeFormat = `${timeFormat}\\s*-\\s*${timeFormat}`;
+      const fullRegex = new RegExp(`^\\s*${rangeFormat}\\s*(,\\s*${rangeFormat}\\s*)*$`);
+
+      if (!fullRegex.test(text)) {
+        await sendTelegramMessage(chatId, "❌ عذراً، التنسيق غير صحيح. يرجى إدخال الوقت بأرقام واضحة (مثال: 01:10-01:15) أو فترات متعددة (مثال: 01:10-01:15, 03:00-03:10) والمحاولة مرة أخرى.");
+        return NextResponse.json({ status: 'invalid format' }, { status: 200 });
+      }
+
       // Query Notion for the most recent row for this user waiting for time
       const response = await notion.databases.query({
         database_id: NOTION_DATABASE_ID,
